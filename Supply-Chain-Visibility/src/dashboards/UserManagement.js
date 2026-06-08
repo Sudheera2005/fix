@@ -162,8 +162,8 @@ function CreateUserPopup({ onClose }) {
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <InputField label="Username" icon={<BiUser/>} value={username} onChange={e => setUsername(e.target.value)} placeholder="j.doe" required />
                             <InputField label="Email Address" icon={<BiEnvelope/>} type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="jane@enterprise.com" required />
-                            <InputField label="Password" type="password" value={password} onChange={e => setPassword(e.target.value)} required />
-                            <InputField label="Confirm Password" type="password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} required />
+                            <InputField label="Password" type="password" value={password} onChange={e => setPassword(e.target.value)} required autoComplete="new-password" />
+                            <InputField label="Confirm Password" type="password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} required autoComplete="new-password" />
                         </div>
                     </div>
 
@@ -672,8 +672,8 @@ export default function UserManagement() {
                                         </div>
                                         {isChangingPassword && (
                                             <div className="grid grid-cols-2 gap-4 animate-fade-in">
-                                                <InputField label="New Secret" type="password" value={newPassword} onChange={e => setNewPassword(e.target.value)} required />
-                                                <InputField label="Confirm Secret" type="password" value={confirmNewPassword} onChange={e => setConfirmNewPassword(e.target.value)} required />
+                                                <InputField label="New Secret" type="password" value={newPassword} onChange={e => setNewPassword(e.target.value)} required autoComplete="new-password" />
+                                                <InputField label="Confirm Secret" type="password" value={confirmNewPassword} onChange={e => setConfirmNewPassword(e.target.value)} required autoComplete="new-password" />
                                             </div>
                                         )}
                                     </div>
