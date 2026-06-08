@@ -31,6 +31,8 @@ class EmployeeSerializer(serializers.ModelSerializer):
 
     def validate_national_id(self, value):
         import re
+        if value == 'N/A':
+            return value
         # Format: 9 digits + V/v OR 12 digits
         if not (re.match(r'^\d{9}[Vv]$', value) or re.match(r'^\d{12}$', value)):
             raise serializers.ValidationError("National ID must be 9 digits + 'V' or 12 digits.")
@@ -38,6 +40,8 @@ class EmployeeSerializer(serializers.ModelSerializer):
 
     def validate_contact_number(self, value):
         import re
+        if value == 'N/A':
+            return value
         if not re.match(r'^\d{10,}$', value):
             raise serializers.ValidationError("Telephone must be at least 10 digits.")
         return value

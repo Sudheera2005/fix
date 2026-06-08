@@ -233,7 +233,7 @@ function CreateUserPopup({ onClose }) {
     );
 }
 
-function InputField({ label, icon, value, onChange, type = "text", placeholder, required = false, step }) {
+function InputField({ label, icon, value, onChange, type = "text", placeholder, required = false, step, autoComplete }) {
     return (
         <div>
             <label className="block text-[11px] font-bold text-coffee-400 mb-1.5 uppercase tracking-widest">{label}</label>
@@ -246,6 +246,7 @@ function InputField({ label, icon, value, onChange, type = "text", placeholder, 
                     placeholder={placeholder} 
                     required={required}
                     step={step}
+                    autoComplete={autoComplete || (type === 'password' ? 'new-password' : undefined)}
                     className={`w-full bg-coffee-50/30 border border-coffee-100 rounded-xl ${icon ? 'pl-11' : 'px-4'} py-2.5 text-sm font-medium text-coffee-900 focus:ring-4 focus:ring-coffee-500/10 focus:border-coffee-500 outline-none transition-all placeholder-coffee-200`} 
                 />
             </div>
