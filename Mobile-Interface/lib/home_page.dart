@@ -21,6 +21,7 @@ class _HomePageState extends State<HomePage> {
   bool _isTracking = false;
   Position? _currentPosition;
   Timer? _timer;
+  Timer? _notificationTimer;
   Map<String, dynamic>? _activeTask;
   bool _isLoadingTask = false;
   String? _accessToken;
@@ -50,6 +51,11 @@ class _HomePageState extends State<HomePage> {
     });
     _fetchActiveTask();
     _fetchNotifications();
+
+    // Start background polling for real-time notifications
+    _notificationTimer = Timer.periodic(const Duration(seconds: 30), (timer) {
+      _fetchNotifications();
+    });
   }
 
   void _showVehicleInfo() {
@@ -349,6 +355,7 @@ class _HomePageState extends State<HomePage> {
   @override
   void dispose() {
     _timer?.cancel();
+    _notificationTimer?.cancel();
     super.dispose();
   }
 
