@@ -584,10 +584,20 @@ class OrderViewSet(viewsets.ModelViewSet):
         lng = request.data.get('lng')
         
         from drivers.models import Driver as DriverProfile
-        from .models import OrderException, OrderStatusLog
+        from .models import OrderException, OrderStatusLog, CustomUser
         try:
-            driver = DriverProfile.objects.get(employee__user=request.user)
-        except DriverProfile.DoesNotExist:
+            # Identity Fallback
+            user = request.user
+            if not user.is_authenticated:
+                u_id = request.data.get('user_id')
+                if u_id:
+                    user = CustomUser.objects.filter(user_id=u_id).first()
+
+            if user and hasattr(user, 'employee') and hasattr(user.employee, 'driver_profile'):
+                driver = user.employee.driver_profile
+            else:
+                driver = DriverProfile.objects.get(employee__user=user)
+        except Exception:
              return Response({'error': 'Only drivers can report exceptions'}, status=status.HTTP_403_FORBIDDEN)
              
         # Create exception record
