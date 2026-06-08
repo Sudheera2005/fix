@@ -896,8 +896,8 @@ class ShipmentViewSet(viewsets.ModelViewSet):
                 for o in orders:
                     stops_data.append({
                         'id': o.order_id,
-                        'lat': float(o.delivery_lat),
-                        'lng': float(o.delivery_lng),
+                        'lat': float(o.delivery_lat) if o.delivery_lat else 0.0,
+                        'lng': float(o.delivery_lng) if o.delivery_lng else 0.0,
                         'address': o.delivery_address
                     })
                     
