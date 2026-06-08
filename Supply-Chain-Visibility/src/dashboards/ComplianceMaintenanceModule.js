@@ -83,7 +83,7 @@ export default function ComplianceMaintenanceModule() {
             toast.success(`Renewal reminder sent to ${name}`);
         } catch (err) {
             toast.dismiss();
-            toast.error("Failed to send notification");
+            toast.error(err.response?.data?.error || "Failed to send notification");
         }
     };
 
