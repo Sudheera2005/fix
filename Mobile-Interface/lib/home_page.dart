@@ -220,7 +220,25 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
-  void _startTracking() {
+  Future<void> _startTracking() async {
+    bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Location services are disabled.")));
+      return;
+    }
+
+    LocationPermission permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+      if (permission == LocationPermission.denied) return;
+    }
+    
+    if (permission == LocationPermission.deniedForever) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Location permissions are permanently denied. Please enable them in settings.")));
+      await Geolocator.openAppSettings();
+      return;
+    }
+
     setState(() => _isTracking = true);
 
     _timer = Timer.periodic(const Duration(seconds: 10), (timer) async {
@@ -230,6 +248,7 @@ class _HomePageState extends State<HomePage> {
         _sendLocationToBackend(position);
       } catch (e) {
         debugPrint("Location error: $e");
+        // Don't crash the timer, just let it retry next tick
       }
     });
   }
