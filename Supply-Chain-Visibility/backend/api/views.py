@@ -512,7 +512,7 @@ from .serializers import OrderSerializer, AuditLogSerializer, ShipmentSerializer
 from django.db import transaction
 
 class OrderViewSet(viewsets.ModelViewSet):
-    queryset = Order.objects.all().order_by('-created_at')
+    queryset = Order.objects.select_related('assigned_vehicle', 'assigned_driver', 'assigned_driver__employee').all().order_by('-created_at')
     serializer_class = OrderSerializer
     
     def get_permissions(self):
@@ -783,7 +783,7 @@ class OrderViewSet(viewsets.ModelViewSet):
 
 
 class ShipmentViewSet(viewsets.ModelViewSet):
-    queryset = Shipment.objects.all().order_by('-created_at')
+    queryset = Shipment.objects.select_related('vehicle', 'driver', 'driver__employee').prefetch_related('order_mappings', 'order_mappings__order').all().order_by('-created_at')
     serializer_class = ShipmentSerializer
     def get_permissions(self):
         # Specific driver actions allowed with basic auth
