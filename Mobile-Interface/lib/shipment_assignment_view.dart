@@ -131,6 +131,10 @@ class _ShipmentAssignmentViewState extends State<ShipmentAssignmentView> {
       permission = await Geolocator.requestPermission();
       if (permission == LocationPermission.denied) return;
     }
+    if (permission == LocationPermission.deniedForever) {
+      // Permissions are denied forever, handle appropriately. 
+      return;
+    }
 
     _locationSubscription?.cancel();
     try {
@@ -226,10 +230,16 @@ class _ShipmentAssignmentViewState extends State<ShipmentAssignmentView> {
   Future<void> _completeDelivery(String orderId, String qrCode, {String? signature}) async {
     if (_data == null) return;
     final id = _data!['shipment_id'];
-    Position pos = await Geolocator.getCurrentPosition();
     
     setState(() => _isLoading = true);
     try {
+      Position pos;
+      try {
+        pos = await Geolocator.getCurrentPosition();
+      } catch (e) {
+        // Fallback or rethrow
+        throw Exception("Please enable GPS/Location Services to complete delivery.");
+      }
       final resp = await http.post(
         Uri.parse("${widget.baseUrl}shipments/$id/scan_delivery/"),
         headers: _authHeaders,
@@ -674,7 +684,12 @@ class _ShipmentAssignmentViewState extends State<ShipmentAssignmentView> {
   Future<void> _reportException(String orderId, String type, String notes) async {
     setState(() => _isLoading = true);
     try {
-      Position pos = await Geolocator.getCurrentPosition();
+      Position pos;
+      try {
+        pos = await Geolocator.getCurrentPosition();
+      } catch (e) {
+        throw Exception("Please enable GPS/Location Services to report an issue.");
+      }
       final resp = await http.post(
         Uri.parse("${widget.baseUrl}orders/$orderId/report_exception/"),
         headers: _authHeaders,
