@@ -133,21 +133,34 @@ class Command(BaseCommand):
         role_driver, _ = Role.objects.get_or_create(role_name='Driver')
         role_customer, _ = Role.objects.get_or_create(role_name='Customer')
         
-        # Drivers
+        # Drivers with real names
+        real_names = [
+            ("James", "Smith", "james.smith@logistics.com", "123 Maple St, NY"),
+            ("Michael", "Johnson", "michael.j@logistics.com", "456 Oak Ave, CA"),
+            ("Robert", "Williams", "robert.w@logistics.com", "789 Pine Rd, TX"),
+            ("David", "Brown", "david.brown@logistics.com", "321 Cedar Ln, FL"),
+            ("Richard", "Jones", "richard.j@logistics.com", "654 Elm St, IL"),
+            ("Charles", "Garcia", "c.garcia@logistics.com", "987 Birch Blvd, WA"),
+            ("Joseph", "Miller", "joseph.m@logistics.com", "741 Walnut Dr, GA"),
+            ("Thomas", "Davis", "thomas.d@logistics.com", "852 Spruce Ct, NC"),
+            ("Christopher", "Rodriguez", "chris.r@logistics.com", "963 Ash Way, AZ"),
+            ("Daniel", "Martinez", "daniel.m@logistics.com", "159 Cherry Pl, CO")
+        ]
+        
         self.drivers = []
-        for i in range(1, 11):
+        for i, (first, last, email, address) in enumerate(real_names, 1):
             u = CustomUser.objects.create_user(
-                username=f"driver_{i}",
-                email=f"driver{i}@example.com",
+                username=f"{first.lower()}.{last.lower()}",
+                email=email,
                 password="password123",
                 role=role_driver
             )
             emp = Employee.objects.create(
                 user=u,
-                full_name=f"Driver Name {i}",
+                full_name=f"{first} {last}",
                 national_id=f"NID-{i*123}",
                 contact_number=f"555-010{i}",
-                address=f"Driver Home {i}",
+                address=address,
                 date_of_birth=timezone.now().date() - timedelta(days=365*30)
             )
             drv = DriverProfile.objects.create(
@@ -179,6 +192,20 @@ class Command(BaseCommand):
             )
             self.customers.append(cust)
 
+        # Inbound Suppliers
+        self.inbound_suppliers = []
+        for i in range(1, 4):
+            sup = InboundSupplier.objects.create(
+                name=f"Global Supplier {i} Corp",
+                address=f"Industrial Park {i}, Sector {i}",
+                lat=Decimal(f"34.15{i}000"),
+                lng=Decimal(f"-118.34{i}000"),
+                contact_name=f"Supplier Contact {i}",
+                contact_phone=f"555-800{i}",
+                qr_token=f"SUPP-TOKEN-{i}-XYZ"
+            )
+            self.inbound_suppliers.append(sup)
+
     def seed_historical_data(self):
         self.stdout.write("Phase 3: 6-Month Historical Data Generation")
         today = timezone.now()
@@ -188,6 +215,7 @@ class Command(BaseCommand):
             current_date = today - timedelta(days=day_offset)
             
             # Generate 2-5 orders per day
+            daily_orders = []
             for _ in range(random.randint(2, 5)):
                 wh = random.choice(self.warehouses)
                 drv = random.choice(self.drivers)
@@ -243,6 +271,51 @@ class Command(BaseCommand):
                         reported_at=current_date + timedelta(hours=4)
                     )
                     OrderException.objects.filter(pk=exc.pk).update(reported_at=current_date + timedelta(hours=4))
+                    
+                daily_orders.append(order)
+
+            # Create an outbound shipment for today's orders
+            if daily_orders:
+                ship_drv = daily_orders[0].assigned_driver
+                ship_veh = daily_orders[0].assigned_vehicle
+                shipment = Shipment.objects.create(
+                    vehicle=ship_veh,
+                    driver=ship_drv,
+                    status='completed',
+                    total_weight=sum((o.weight_kg for o in daily_orders), Decimal('0')),
+                    total_volume=sum((o.volume_m3 for o in daily_orders), Decimal('0')),
+                    created_at=current_date,
+                    deployed_at=current_date + timedelta(hours=1)
+                )
+                Shipment.objects.filter(pk=shipment.pk).update(created_at=current_date, deployed_at=current_date + timedelta(hours=1))
+                for o in daily_orders:
+                    ShipmentOrder.objects.create(shipment=shipment, order=o)
+
+            # Inbound / Supplier Delivery Historical Data
+            if day_offset % 5 == 0:  # Every 5 days
+                sup = random.choice(self.inbound_suppliers)
+                wh = random.choice(self.warehouses)
+                drv = random.choice(self.drivers)
+                veh = random.choice(self.vehicles)
+                
+                manifest = SupplierDeliveryManifest.objects.create(
+                    manifest_reference=f"MNF-HIST-{day_offset}",
+                    supplier=sup,
+                    status='delivered',
+                    expected_collection=current_date,
+                    warehouse=wh
+                )
+                ManifestLineItem.objects.create(
+                    manifest=manifest, item_code="RAW-MAT-01", description="Raw Materials Bulk",
+                    unit="kg", expected_qty=Decimal(1000), received_qty=Decimal(1000), unit_weight_kg=Decimal(1), unit_volume_m3=Decimal("0.01")
+                )
+                assignment = InboundCollectionAssignment.objects.create(
+                    manifest=manifest, driver=drv, vehicle=veh, status='completed',
+                    assigned_at=current_date, accepted_at=current_date+timedelta(minutes=10),
+                    departed_at=current_date+timedelta(minutes=20), arrived_at_supplier=current_date+timedelta(hours=1),
+                    collection_completed_at=current_date+timedelta(hours=2), arrived_at_warehouse=current_date+timedelta(hours=4),
+                    completed_at=current_date+timedelta(hours=5)
+                )
 
             # Trip Logs & Fuel Expenses for some vehicles on this day
             for v in random.sample(self.vehicles, k=3):
@@ -271,6 +344,7 @@ class Command(BaseCommand):
         today = timezone.now()
         
         # Create some Active Orders (pending, assigned, in_transit)
+        pending_orders = []
         for _ in range(5):
             wh = random.choice(self.warehouses)
             order = Order.objects.create(
@@ -285,7 +359,27 @@ class Command(BaseCommand):
                 warehouse_address=wh.address,
                 status='pending'
             )
-        
+            pending_orders.append(order)
+            
+        # Active Outbound Shipment (Pending/Assigned)
+        if len(self.vehicles) > 0 and len(self.drivers) > 0:
+            shipment = Shipment.objects.create(
+                vehicle=self.vehicles[0],
+                driver=self.drivers[0],
+                status='in_progress',
+                total_weight=sum((o.weight_kg for o in pending_orders[:2]), Decimal('0')),
+                total_volume=sum((o.volume_m3 for o in pending_orders[:2]), Decimal('0')),
+                created_at=today,
+                deployed_at=today
+            )
+            for o in pending_orders[:2]:
+                o.status = 'in_transit'
+                o.assigned_vehicle = self.vehicles[0]
+                o.assigned_driver = self.drivers[0]
+                o.save()
+                ShipmentOrder.objects.create(shipment=shipment, order=o)
+                OrderStatusLog.objects.create(order=o, from_status='pending', to_status='in_transit', source='system')
+
         for _ in range(3):
             wh = random.choice(self.warehouses)
             drv = random.choice(self.drivers)
@@ -310,6 +404,29 @@ class Command(BaseCommand):
                 driver=drv,
                 status='active',
                 assignment_start_date=today - timedelta(hours=2)
+            )
+
+        # Active Inbound Supplier Delivery Manifest
+        if self.inbound_suppliers:
+            sup = random.choice(self.inbound_suppliers)
+            wh = random.choice(self.warehouses)
+            drv = random.choice(self.drivers)
+            veh = random.choice(self.vehicles)
+            
+            manifest = SupplierDeliveryManifest.objects.create(
+                manifest_reference=f"MNF-LIVE-1",
+                supplier=sup,
+                status='assigned',
+                expected_collection=today + timedelta(hours=2),
+                warehouse=wh
+            )
+            ManifestLineItem.objects.create(
+                manifest=manifest, item_code="LIVE-MAT-01", description="Urgent Raw Materials",
+                unit="kg", expected_qty=Decimal(500), unit_weight_kg=Decimal(1), unit_volume_m3=Decimal("0.01")
+            )
+            InboundCollectionAssignment.objects.create(
+                manifest=manifest, driver=drv, vehicle=veh, status='assigned',
+                assigned_at=today
             )
 
         # Some delayed orders
@@ -351,4 +468,3 @@ class Command(BaseCommand):
         )
 
         self.stdout.write("Demonstration data generated.")
-
