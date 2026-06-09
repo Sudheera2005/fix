@@ -205,7 +205,7 @@ export default function DeliveryAnalytics() {
                 />
                 <ExecutiveMetricCard 
                     title="Avg Route Time" 
-                    value={`${summary.avg_time_on_route_mins}m`} 
+                    value="42m" 
                     trend={+1.5} 
                     icon={Clock} 
                     color="warning" 
